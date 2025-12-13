@@ -1,0 +1,48 @@
+services:
+  openbis-db:
+    image: postgres:15
+    container_name: openbis-db
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      PGDATA: "${PGDATA}"
+    volumes:
+      - openbis-db-data:/var/lib/postgresql/data
+    networks:
+      - openbis-network
+
+  openbis-app:
+    image: openbis/openbis-app:6.8
+    container_name: openbis-app
+    depends_on:
+      - openbis-db
+    environment:
+      OPENBIS_ADMIN_PASS: "${OPENBIS_ADMIN_PASS}"
+      OPENBIS_DATA: "${OPENBIS_DATA}"
+      OPENBIS_DB_ADMIN_USER: "${POSTGRES_USER}"
+      OPENBIS_DB_ADMIN_PASS: "${POSTGRES_PASSWORD}"
+      OPENBIS_DB_APP_USER: "${OPENBIS_DB_APP_USER}"
+      OPENBIS_DB_APP_PASS: "${OPENBIS_DB_APP_PASS}"
+      OPENBIS_DB_HOST: "${OPENBIS_DB_HOST}"
+      OPENBIS_ETC: "${OPENBIS_ETC}"
+      OPENBIS_HOME: "${OPENBIS_HOME}"
+      OPENBIS_LOG: "${OPENBIS_LOG}"
+      OPENBIS_FQDN: "${OPENBIS_FQDN}"
+    volumes:
+      - openbis-app-data:/data
+      - openbis-app-etc:/etc/openbis
+      - openbis-app-logs:/var/log/openbis
+    ports:
+      - "8082:8080" # AS (Metadata) Port
+      - "8081:8081" # DSS (Data store) Port
+    networks:
+      - openbis-network
+
+volumes:
+  openbis-db-data:
+  openbis-app-data:
+  openbis-app-etc:
+  openbis-app-logs:
+
+networks:
+  openbis-network:
