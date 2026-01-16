@@ -1,27 +1,24 @@
 services:
-  frontend:
-    image: nginx:alpine
-    container_name: nginx-proxy
-    restart: unless-stopped
+  backend:
+    container_name: backend
+    build: ./supplierRatingBackend
     ports:
-      - "80:80"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./html:/usr/share/nginx/html:ro
+      - "8080:8080"
+    env_file:
+      - ./supplierRatingBackend/.env.production
+    networks:
+      - rating-network
+
+  frontend:
+    container_name: frontend
+    build: ./supplierRatingFrontend
+    ports:
+      - "8081:80"
     depends_on:
       - backend
     networks:
-      - app-network
-
-  backend:
-    image: spring-app:v1
-    container_name: spring-backend
-    restart: unless-stopped
-    environment:
-      - OPENBIS_API_URL=${OPENBIS_API_URL}
-    networks:
-      - app-network
+      - rating-network
 
 networks:
-  app-network:
+  rating-network:
     driver: bridge
