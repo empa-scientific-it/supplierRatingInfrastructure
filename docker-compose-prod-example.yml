@@ -1,0 +1,24 @@
+services:
+  backend:
+    container_name: backend
+    image: ghcr.io/supplierratingsoftware/supplierratingbackend:latest
+    env_file:
+      - stack.env
+    ports:
+      - "8085:8080"
+    networks:
+      - rating-network
+
+  frontend:
+    container_name: frontend
+    image: ghcr.io/supplierratingsoftware/supplierratingfrontend:latest
+    ports:
+      - "8082:80"
+    depends_on:
+      - backend
+    networks:
+      - rating-network
+
+networks:
+  rating-network:
+    driver: bridge
