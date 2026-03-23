@@ -1,24 +1,59 @@
 services:
-  backend:
-    container_name: backend
-    build: ./supplierRatingBackend
-    ports:
-      - "8080:8080"
-    env_file:
-      - ./supplierRatingBackend/.env.production
+  db:
+    container_name: openbis-db
+    image: postgres:15
+    environment:
+      - POSTGRES_PASSWORD=mysecretpassword
+      - PGDATA=/var/lib/postgresql/data
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - openbis-db-data:/var/lib/postgresql/data
     networks:
-      - rating-network
+      - openbis-network
 
-  frontend:
-    container_name: frontend
-    build: ./supplierRatingFrontend
-    ports:
-      - "8081:80"
+  app:
+    container_name: openbis-app
+    image: openbis/openbis-app:6.8
     depends_on:
-      - backend
+      - db
+    environment:
+      # Diese Variablen ersetzen die Logik aus dem entfernten Shell-Skript
+      - database.url-host-part=db
+      - database.owner-password=mysecretpassword
+      - database.admin-password=mysecretpassword
+      - database.owner=postgres
+    volumes:
+      - openbis-app-data:/data
+      - openbis-app-etc:/etc/openbis
+      - openbis-app-logs:/var/log/openbis
+      # Der Mount für das .sh Skript wurde hier entfernt
+    ports:
+      - "8081:8081"
+      - "9090:8080" # Hier wurde der Host-Port von 8080 auf 9090 geändert
+      - "8085:8085"
     networks:
-      - rating-network
+      - openbis-network
+
+  ingress:
+    container_name: openbis-ingress
+    image: openbis/openbis-local:latest
+    depends_on:
+      - app
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./certs:/etc/nginx/certs
+    networks:
+      - openbis-network
 
 networks:
-  rating-network:
+  openbis-network:
+    name: openbis-shared-network # Erzwingt diesen exakten Namen ohne Präfix
     driver: bridge
+
+volumes:
+  openbis-db-data:
+  openbis-app-data:
+  openbis-app-etc:
+  openbis-app-logs:
