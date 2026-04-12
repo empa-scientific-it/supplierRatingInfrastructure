@@ -1,3 +1,4 @@
+# For a local development environment, use this file to start OpenBIS.
 services:
   db:
     container_name: openbis-db
@@ -17,20 +18,22 @@ services:
     depends_on:
       - db
     environment:
-      # Diese Variablen ersetzen die Logik aus dem entfernten Shell-Skript
       - database.url-host-part=db
       - database.owner-password=mysecretpassword
       - database.admin-password=mysecretpassword
       - database.owner=postgres
+      # PAT configuration
+      - personal-access-tokens.enabled=true
+      - personal-access-tokens.max-validity-period=31536000 # 365 days in seconds
+      - personal-access-tokens-file-path=/data/openbis/personal-access-tokens.json
     volumes:
       - openbis-app-data:/data
       - openbis-app-etc:/etc/openbis
       - openbis-app-logs:/var/log/openbis
-      # Der Mount für das .sh Skript wurde hier entfernt
     ports:
-      - "8081:8081"
-      - "9090:8080" # Hier wurde der Host-Port von 8080 auf 9090 geändert
-      - "8085:8085"
+      - "8081:8081" # access to openbis-app without ingress
+      - "9090:8080" # alternative access to openbis-app via browser
+      - "8085:8085" # for DSS (Data Store Server) access
     networks:
       - openbis-network
 
@@ -49,7 +52,7 @@ services:
 
 networks:
   openbis-network:
-    name: openbis-shared-network # Erzwingt diesen exakten Namen ohne Präfix
+    name: openbis-shared-network # networks need to be shared between services and containers so that they can communicate
     driver: bridge
 
 volumes:
