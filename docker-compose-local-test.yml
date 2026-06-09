@@ -1,4 +1,5 @@
 # For a local development environment, use this file to start OpenBIS.
+name: supplierratinginfrastructure
 services:
   db:
     container_name: openbis-db
@@ -23,8 +24,8 @@ services:
       - database.admin-password=mysecretpassword
       - database.owner=postgres
       # PAT configuration
-      - personal-access-tokens.enabled=true
-      - personal-access-tokens.max-validity-period=31536000 # 365 days in seconds
+      - personal-access-tokens-enabled=true
+      - personal-access-tokens-max-validity-period=31536000 # 365 days in seconds
       - personal-access-tokens-file-path=/data/openbis/personal-access-tokens.json
     volumes:
       - openbis-app-data:/data
