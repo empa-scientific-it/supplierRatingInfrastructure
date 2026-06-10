@@ -1,24 +1,64 @@
+# For a local development environment, use this file to start OpenBIS.
+name: supplierratinginfrastructure
 services:
-  backend:
-    container_name: backend
-    build: ./supplierRatingBackend
-    ports:
-      - "8080:8080"
-    env_file:
-      - ./supplierRatingBackend/.env.production
+  db:
+    container_name: openbis-db
+    image: postgres:15
+    environment:
+      - POSTGRES_PASSWORD=mysecretpassword
+      - PGDATA=/var/lib/postgresql/data
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - openbis-db-data:/var/lib/postgresql/data
     networks:
-      - rating-network
+      - openbis-network
 
-  frontend:
-    container_name: frontend
-    build: ./supplierRatingFrontend
-    ports:
-      - "8081:80"
+  app:
+    container_name: openbis-app
+    image: openbis/openbis-app:6.8
     depends_on:
-      - backend
+      - db
+    environment:
+      - database.url-host-part=db
+      - database.owner-password=mysecretpassword
+      - database.admin-password=mysecretpassword
+      - database.owner=postgres
+      - OPENBIS_ADMIN_PASS=123456789  # default password for admin user
+      # PAT configuration
+      - personal-access-tokens-enabled=true
+      - personal-access-tokens-max-validity-period=31536000 # 365 days in seconds
+      - personal-access-tokens-file-path=/data/openbis/personal-access-tokens.json
+    volumes:
+      - openbis-app-data:/data
+      - openbis-app-etc:/etc/openbis
+      - openbis-app-logs:/var/log/openbis
+    ports:
+      - "8081:8081" # access to openbis-app without ingress
+      - "9090:8080" # alternative access to openbis-app via browser
+      - "8085:8085" # for DSS (Data Store Server) access
     networks:
-      - rating-network
+      - openbis-network
+
+  ingress:
+    container_name: openbis-ingress
+    image: openbis/openbis-local:latest
+    depends_on:
+      - app
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./certs:/etc/nginx/certs
+    networks:
+      - openbis-network
 
 networks:
-  rating-network:
+  openbis-network:
+    name: openbis-shared-network # networks need to be shared between services and containers so that they can communicate
     driver: bridge
+
+volumes:
+  openbis-db-data:
+  openbis-app-data:
+  openbis-app-etc:
+  openbis-app-logs:
