@@ -37,8 +37,8 @@ openBIS takes a minute or two to fully start.
 
 ## 4. Access openBIS
 
-Open **https://localhost** in your browser and accept the self-signed certificate warning.
-Log in with the openBIS admin account (user `admin`).
+Open **http://localhost:9090/openbis/** in your browser.
+Log in with the openBIS admin account: user `admin`, password `123456789` (configurable via the `OPENBIS_ADMIN_PASS` environment variable in `docker-compose.yml`; it only takes effect on a fresh initialization).
 
 The stack exposes the following ports:
 
@@ -110,17 +110,43 @@ Run the three parts in this order:
    docker compose up -d
    ```
 
+   Once it is up, open **http://localhost:9090/openbis/** and log in as `admin` / `123456789`.
+
 2. **Configure openBIS and create a PAT** (first time only — see Sections 5 and 6).
 
-3. **Start the Backend** (see the
-   [Backend repository](https://github.com/empa-scientific-it/supplierRatingBackend)). It joins
-   openBIS's shared Docker network (`openbis-shared-network`) and is available at `http://localhost:8080`.
+3. **Start the Backend** — clone and configure the
+   [Backend repository](https://github.com/empa-scientific-it/supplierRatingBackend) (see its README),
+   then build and start it:
 
-4. **Start the Frontend** (see the
-   [Frontend repository](https://github.com/empa-scientific-it/supplierRatingFrontend)). It runs at
-   `http://localhost:4200`.
+   ```bash
+   docker compose up -d --build
+   ```
+
+   It joins openBIS's shared Docker network (`openbis-shared-network`) and is available at `http://localhost:8080`.
+
+4. **Start the Frontend** — install the dependencies and start the dev server in the
+   [Frontend repository](https://github.com/empa-scientific-it/supplierRatingFrontend):
+
+   ```bash
+   npm install
+   npm run start:dev
+   ```
+
+   It runs at `http://localhost:4200`.
 
 5. Open `http://localhost:4200` and log in with your openBIS username and PAT.
+
+6. **When you're finished**, stop the Frontend dev server with `Ctrl+C`, then shut down the Docker stacks
+   so openBIS shuts down cleanly. In both the Backend and the infrastructure folder, run:
+
+   ```bash
+   docker compose stop
+   ```
+
+   `docker compose stop` keeps the containers so they restart quickly; `docker compose down` removes them
+   instead — your data is preserved either way. Next time, bring everything back up with
+   `docker compose up -d`. See [Section 9](#9-stopping-and-data) for fully removing the containers or
+   resetting all data.
 
 ## 9. Stopping and data
 
@@ -131,4 +157,4 @@ Run the three parts in this order:
 
 ## 10. License
 
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License – see the [LICENSE](LICENSE) file f
