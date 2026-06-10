@@ -1,59 +1,134 @@
-# SupplierRating-Infrastructure
+# Supplier Rating Software – Infrastructure (Local openBIS)
 
-Welcome to the infrastructure repository for the Supplier Rating Software. This project serves as the orchestration layer that ties together the [SupplierRatingFrontend](https://github.com/SupplierRatingSoftware/supplierRatingFrontend) and [SupplierRatingBackend](https://github.com/SupplierRatingSoftware/supplierRatingBackend) applications. It utilizes Docker to manage the containerized deployment of the full stack.
+This repository provides a **local openBIS instance** (via Docker Compose) for developing the
+Supplier Rating Software on your own machine, and documents how to run the **full stack**
+(openBIS + Backend + Frontend) locally.
 
-## 1. Key Features
----
-1.  **Centralized Orchestration**: Manages the lifecycle of both frontend and backend services simultaneously using Docker Compose.
-2.  **Network Configuration**: Establishes a dedicated bridge network (`rating-network`) to ensure secure and direct communication between the frontend and backend containers.
-3.  **Production Readiness**: Includes a production-ready example configuration (`docker-compose-prod-example.yml`) that utilizes pre-built images from the container registry.
-4.  **Environment Management**: Supports configuration via environment files to handle sensitive credentials and settings.
+It is the counterpart to the [Backend](https://github.com/empa-scientific-it/supplierRatingBackend)
+and [Frontend](https://github.com/empa-scientific-it/supplierRatingFrontend) repositories.
 
-## 2. Technologies Used
----
-1.  **Docker**: Used for containerizing the application services to ensure consistency across different environments.
-2.  **Docker Compose**: Used to define and run the multi-container Docker application.
-3.  **Nginx**: Serves the frontend application (implied by the frontend service configuration).
-4.  **Java/Spring Boot**: Powers the backend API (implied by the backend service context).
+## 1. What's in this repository
 
-## 3. Getting Started
----
-Follow these instructions to set up the infrastructure on your local machine.
+- `docker-compose.yml` – starts a local openBIS stack: the application server (`openbis-app`),
+  a PostgreSQL database (`openbis-db`), and an Nginx ingress (`openbis-ingress`) for HTTPS access.
+- `certs/` – self-signed certificates used by the ingress.
 
-### 3.1 How to configure openBIS
-The backend service requires a connection to an openBIS instance. You must ensure that the connection details are provided in your environment configuration files. Please refer to the Backend documentation for specific API user requirements and property types.
+## 2. Prerequisites
 
-### 3.2 Prerequisites
-1.  Ensure you have **Docker** installed on your machine.
-2.  Ensure you have **Docker Compose** installed.
+- Docker
+- Docker Compose
 
-### 3.3 Environment Variables
-The application relies on environment variables for configuration.
-1. The `docker-compose-prod-example.yml` file references a `stack.env` file.
-2. Please store this file as a: `docker-compose.yml` in your desired directory.
-3.  You should check these files to configure database credentials, openBIS URLs, and other runtime settings. An example `.env` file is in the backend project.
+## 3. Start the local openBIS
 
-### 3.4 Configuration
-1.  Review the `.env` or `stack.env` files.
-2.  Update the values to match your local or production environment settings.
+From this repository, run:
 
-### 3.5 Installation
-1.  Open your terminal in the root directory of the `docker-compose.yml`.
-2.  Run the following command to build and start the services:
-    ```bash
-    docker-compose up -d
-    ```
+```bash
+docker compose up -d
+```
 
-### 3.6 Usage
-1.  Once the containers are running, the services will be accessible at the following ports:
-    * **Frontend**: `http://localhost:8082`
-    * **Backend API**: `http://localhost:8085` (if you need it outside the container)
+The Compose file sets a fixed project name (`name: supplierratinginfrastructure`), so the named
+Docker volumes are always the same. Your openBIS data and Personal Access Tokens are therefore
+reused on every start — you do **not** need the `-p` option.
 
-## 3. Contributing
-We welcome contributions to the infrastructure setup. Please ensure any changes to the Docker configuration are tested against production compose files.
+openBIS takes a minute or two to fully start.
 
-## 3. License
-This project is licensed under the MIT License.
-Copyright (c) 2025 SupplierRatingSoftware.
+> **Important:** Never start this stack with a different project name (`-p ...`). A different name
+> creates a new, empty set of volumes, and your existing data would appear to be gone.
 
-Permission is granted to use, copy, modify, and distribute this software under the terms of the MIT License.
+## 4. Access openBIS
+
+Open **https://localhost** in your browser and accept the self-signed certificate warning.
+Log in with the openBIS admin account (user `admin`).
+
+The stack exposes the following ports:
+
+| Port      | Purpose                                       |
+|-----------|-----------------------------------------------|
+| 443 / 80  | openBIS UI via the Nginx ingress (HTTPS/HTTP) |
+| 9090      | Direct browser access to `openbis-app`        |
+| 8081      | `openbis-app` without ingress                 |
+| 8085      | Data Store Server (DSS)                        |
+
+## 5. One-time openBIS configuration
+
+The first time you set up a fresh openBIS instance, you need to import the data model and create
+the storage hierarchy:
+
+1. **Import the object types (schema):** The `.xlsx` schema files live in the
+   [Backend repository](https://github.com/empa-scientific-it/supplierRatingBackend) under
+   `openbis-schema/`. Import them via the openBIS Admin UI (**TOOLS → Import → All**).
+2. **Create the storage hierarchy** (Space, Projects, Collections) with the required codes.
+
+The Backend README's *"How to configure openBIS"* section lists the exact steps and the required
+Space, Project, and Collection codes.
+
+## 6. Personal Access Tokens (PAT)
+
+The Supplier Rating Software authenticates users with openBIS **Personal Access Tokens**. PAT support
+is already configured in `docker-compose.yml`:
+
+```yaml
+- personal-access-tokens-enabled=true
+- personal-access-tokens-max-validity-period=31536000   # 365 days in seconds
+- personal-access-tokens-file-path=/data/openbis/personal-access-tokens.json
+```
+
+> **Why the dashes matter:** openBIS reads these settings **only** in the hyphenated form
+> (`personal-access-tokens-...`). The dotted form (e.g. `personal-access-tokens.max-validity-period`)
+> is ignored, and openBIS falls back to its default maximum validity of **30 days**. Keep the
+> hyphenated form so that tokens with up to one year of validity can be created.
+
+### Create a PAT
+
+1. Open openBIS and log in as `admin`.
+2. Go to the profile menu (top right) → **Personal Access Tokens**.
+3. Create a new token with a validity of up to **1 year** and copy it.
+4. Use this token together with your openBIS username to log in to the Supplier Rating Frontend.
+
+### Persistence
+
+PATs are stored in the openBIS **database** (volume `supplierratinginfrastructure_openbis-db-data`).
+They survive both container restarts and a full `docker compose down` / `up`. They are only lost if
+you delete the volumes (see [Section 9](#9-stopping-and-data)).
+
+## 7. Important configuration notes
+
+- **Configure openBIS only through `docker-compose.yml`.** On every start, openBIS regenerates its
+  internal `service.properties` from the environment variables in this file. Editing that file inside
+  the running container has no lasting effect — it is overwritten on the next restart.
+- **Use the hyphenated property form** (see Section 6). The dotted form is silently ignored.
+- **Keep the fixed project name** (`name: supplierratinginfrastructure`) so the same volumes — and
+  therefore your data and tokens — are always reused.
+
+## 8. Running the full stack locally
+
+Run the three parts in this order:
+
+1. **Start openBIS** (this repository):
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. **Configure openBIS and create a PAT** (first time only — see Sections 5 and 6).
+
+3. **Start the Backend** (see the
+   [Backend repository](https://github.com/empa-scientific-it/supplierRatingBackend)). It joins
+   openBIS's shared Docker network (`openbis-shared-network`) and is available at `http://localhost:8080`.
+
+4. **Start the Frontend** (see the
+   [Frontend repository](https://github.com/empa-scientific-it/supplierRatingFrontend)). It runs at
+   `http://localhost:4200`.
+
+5. Open `http://localhost:4200` and log in with your openBIS username and PAT.
+
+## 9. Stopping and data
+
+- `docker compose down` — stops and removes the containers but **keeps** the volumes. Your openBIS
+  data and PATs are preserved.
+- `docker compose down -v` — additionally **deletes** the volumes. **All openBIS data and PATs are
+  lost.** Use this only for a clean reset.
+
+## 10. License
+
+This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
