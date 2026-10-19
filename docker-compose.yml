@@ -15,7 +15,7 @@ services:
 
   app:
     container_name: openbis-app
-    image: openbis/openbis-app:6.8
+    image: openbis/openbis-app:${OPENBIS_VERSION}   # Version kommt aus der .env-Datei
     depends_on:
       - db
     environment:
@@ -57,8 +57,14 @@ networks:
     name: openbis-shared-network # networks need to be shared between services and containers so that they can communicate
     driver: bridge
 
+# Jede openBIS-Version bekommt eigene Volumes (Version im Namen),
+# damit sich die Daten von 7.0.0 und 20.10.13.1 nicht vermischen.
 volumes:
   openbis-db-data:
+    name: openbis-db-data-${OPENBIS_VERSION}
   openbis-app-data:
+    name: openbis-app-data-${OPENBIS_VERSION}
   openbis-app-etc:
+    name: openbis-app-etc-${OPENBIS_VERSION}
   openbis-app-logs:
+    name: openbis-app-logs-${OPENBIS_VERSION}
