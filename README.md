@@ -11,6 +11,7 @@ and [Frontend](https://github.com/empa-scientific-it/supplierRatingFrontend) rep
 
 - `docker-compose.yml` – starts a local openBIS stack: the application server (`openbis-app`),
   a PostgreSQL database (`openbis-db`), and an Nginx ingress (`openbis-ingress`) for HTTPS access.
+- `.env` – selects the openBIS version that is started (see [Section 3.1](#31-choosing-the-openbis-version)).
 - `certs/` – self-signed certificates used by the ingress.
 
 ## 2. Prerequisites
@@ -26,19 +27,54 @@ From this repository, run:
 docker compose up -d
 ```
 
-The Compose file sets a fixed project name (`name: supplierratinginfrastructure`), so the named
-Docker volumes are always the same. Your openBIS data and Personal Access Tokens are therefore
-reused on every start — you do **not** need the `-p` option.
+This starts the openBIS version set in `.env` (default: **20.10.13.1**, the current production version).
+openBIS takes a minute or two to fully start. On the first start of a version, Docker also downloads
+the image, which takes a few more minutes.
 
-openBIS takes a minute or two to fully start.
+### 3.1. Choosing the openBIS version
 
-> **Important:** Never start this stack with a different project name (`-p ...`). A different name
-> creates a new, empty set of volumes, and your existing data would appear to be gone.
+The openBIS version is set in the `.env` file:
+
+```bash
+OPENBIS_VERSION=20.10.13.1
+```
+
+| Value        | Matches                                                  |
+|--------------|----------------------------------------------------------|
+| `20.10.13.1` | Current Empa production (lab303) – **default**           |
+| `7.0.0`      | Workshop instance (dev308) and all Empa instances from 2027 |
+
+The value is used for the Docker image (`openbis/openbis-app:<version>`) and for the names of the
+Docker volumes (e.g. `openbis-db-data-20.10.13.1`). **Each version therefore has its own data.**
+Switching the version does not delete anything: the data of the other version stays in its volumes
+and is available again when you switch back.
+
+To switch the version:
+
+1. Stop the running stack: `docker compose down`
+2. Change `OPENBIS_VERSION` in `.env`.
+3. Check the result (optional): `docker compose config | grep -E "image: openbis/openbis-app|name: openbis-db"`
+4. Start again: `docker compose up -d`
+
+> **Note:** Run only one version at a time – all versions use the same container names and ports.
+> A version that is started for the first time is empty and needs the one-time configuration
+> described in [Section 5](#5-one-time-openbis-configuration).
+
+> **Backend setting:** The schema files in the Backend repository define the name property as `NAME`.
+> For both local versions, set `OPENBIS_NAME_PROPERTY=NAME` in the Backend's `.env.development`.
+> (The production instance lab303 uses the internal property `$NAME` instead.)
 
 ## 4. Access openBIS
 
-Open **http://localhost:9090/openbis/** in your browser.
 Log in with the openBIS admin account: user `admin`, password `123456789` (configurable via the `OPENBIS_ADMIN_PASS` environment variable in `docker-compose.yml`; it only takes effect on a fresh initialization).
+
+The URLs differ slightly between the versions:
+
+| UI                               | openBIS 20.10.13.1                                    | openBIS 7.0.0                         |
+|----------------------------------|-------------------------------------------------------|---------------------------------------|
+| Entry page                       | http://localhost:9090/openbis/ (classic login page)   | **http://localhost:9090/openbis/**    |
+| ELN (Lab Notebook & Inventory)   | **http://localhost:9090/openbis/webapp/eln-lims/**    | via the entry page                    |
+| Admin UI (import, PATs)          | **http://localhost:9090/openbis/webapp/openbis-ng-ui/** | via the entry page                  |
 
 The stack exposes the following ports:
 
@@ -87,8 +123,9 @@ is already configured in `docker-compose.yml`:
 
 ### Persistence
 
-PATs are stored in the openBIS **database** (volume `supplierratinginfrastructure_openbis-db-data`).
-They survive both container restarts and a full `docker compose down` / `up`. They are only lost if
+PATs are stored in the openBIS **database** (volume `openbis-db-data-<version>`, e.g.
+`openbis-db-data-20.10.13.1`). A PAT is only valid for the version it was created in.
+PATs survive both container restarts and a full `docker compose down` / `up`. They are only lost if
 you delete the volumes (see [Section 9](#9-stopping-and-data)).
 
 ## 7. Important configuration notes
@@ -97,8 +134,8 @@ you delete the volumes (see [Section 9](#9-stopping-and-data)).
   internal `service.properties` from the environment variables in this file. Editing that file inside
   the running container has no lasting effect — it is overwritten on the next restart.
 - **Use the hyphenated property form** (see Section 6). The dotted form is silently ignored.
-- **Keep the fixed project name** (`name: supplierratinginfrastructure`) so the same volumes — and
-  therefore your data and tokens — are always reused.
+- **Volume names contain the openBIS version.** Changing `OPENBIS_VERSION` switches to a different set
+  of data — your previous data is not lost (see [Section 3.1](#31-choosing-the-openbis-version)).
 
 ## 8. Running the full stack locally
 
@@ -110,7 +147,7 @@ Run the three parts in this order:
    docker compose up -d
    ```
 
-   Once it is up, open **http://localhost:9090/openbis/** and log in as `admin` / `123456789`.
+   Once it is up, open openBIS (URLs see [Section 4](#4-access-openbis)) and log in as `admin` / `123456789`.
 
 2. **Configure openBIS and create a PAT** (first time only — see Sections 5 and 6).
 
@@ -152,8 +189,8 @@ Run the three parts in this order:
 
 - `docker compose down` — stops and removes the containers but **keeps** the volumes. Your openBIS
   data and PATs are preserved.
-- `docker compose down -v` — additionally **deletes** the volumes. **All openBIS data and PATs are
-  lost.** Use this only for a clean reset.
+- `docker compose down -v` — additionally **deletes** the volumes of the version currently set in
+  `.env`. **All openBIS data and PATs of this version are lost.** Use this only for a clean reset.
 
 ## 10. License
 
